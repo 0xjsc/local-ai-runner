@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat</title>
+    <style>
+        :root{--p:#6366f1;--pd:#4f46e5;--t:#1f2937;--tl:#6b7280;--bg:#f9fafb;--c:#fff;--ub:#e0e7ff;--ab:#f3f4f6;--e:#ef4444;--th:#10b981}
+        [data-theme="dark"]{--p:#818cf8;--pd:#6366f1;--t:#f3f4f6;--tl:#9ca3af;--bg:#111827;--c:#1f2937;--ub:#3730a3;--ab:#4b5563;--e:#dc2626;--th:#34d399}
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--t);min-height:100vh;display:flex;flex-direction:column;transition:all .3s;padding-top:60px}
+        header{padding:.75rem 1rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(0,0,0,.1);background:var(--bg);position:fixed;top:0;left:0;right:0;z-index:100;height:60px}
+        .dark header{border-bottom:1px solid rgba(255,255,255,.1)}
+        h1{font-size:1.2rem;font-weight:600;display:flex;align-items:center;gap:.5rem}
+        .logo{width:24px;height:24px;background:var(--p);border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:bold}
+        .header-actions{display:flex;gap:.5rem;align-items:center}
+        .theme-toggle,.lang-toggle{background:none;border:none;color:var(--tl);cursor:pointer;font-size:1rem;display:flex;align-items:center;gap:.5rem;padding:.5rem;border-radius:.5rem}
+        .theme-toggle:hover,.lang-toggle:hover{background:rgba(0,0,0,.05)}
+        .dark .theme-toggle:hover,.dark .lang-toggle:hover{background:rgba(255,255,255,.05)}
+        main{flex:1;display:flex;flex-direction:column;max-width:800px;width:100%;margin:0 auto;padding:.5rem 1rem 1rem}
+        #chat{flex:1;overflow-y:auto;padding:.5rem 0;display:flex;flex-direction:column;gap:1rem}
+        #chat::-webkit-scrollbar{width:4px}
+        #chat::-webkit-scrollbar-track{background:transparent}
+        #chat::-webkit-scrollbar-thumb{background:var(--p);border-radius:2px}
+        .msg{max-width:85%;padding:.75rem;border-radius:.75rem;line-height:1.5;animation:fadeIn .3s;position:relative}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        .user-msg{align-self:flex-end;background:var(--ub);border-bottom-right-radius:.25rem}
+        .ai-msg{align-self:flex-start;background:var(--ab);border-bottom-left-radius:.25rem}
+        .msg-time{font-size:.7rem;color:var(--tl);margin-top:.3rem;text-align:right}
+        .msg-content{white-space:pre-wrap;word-break:break-word}
+        .error{color:var(--e);font-style:italic}
+        .thinking{color:var(--tl);font-style:italic;border-left:2px solid var(--th);padding-left:.5rem;opacity:.7;transition:all .3s;cursor:pointer}
+        .thinking.collapsed{max-height:0;overflow:hidden;opacity:0;margin:0;padding:0;border:0}
+        #input-area{display:flex;flex-direction:column;gap:.5rem;padding:.5rem 0;position:sticky;bottom:0;background:var(--bg)}
+        .input-row{display:flex;gap:.5rem}
+        #input{flex:1;padding:.6rem .8rem;border:1px solid rgba(0,0,0,.1);border-radius:.5rem;font-family:inherit;font-size:.95rem;background:var(--c);color:var(--t);transition:all .3s;resize:none;min-height:40px;max-height:120px}
+        .dark #input{border:1px solid rgba(255,255,255,.1)}
+        #input:focus{outline:none;border-color:var(--p);box-shadow:0 0 0 2px rgba(99,102,241,.2)}
+        #send{min-width:40px;height:40px;background:var(--p);color:#fff;border:none;border-radius:.5rem;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center}
+        #send:hover{background:var(--pd)}
+        #send:disabled{background:var(--tl);cursor:not-allowed}
+        #typing{height:1.2rem;color:var(--tl);font-size:.8rem;display:flex;align-items:center;gap:.3rem;opacity:0;transition:opacity .3s;padding-left:.5rem}
+        #typing.visible{opacity:1}
+        .dots{display:flex;gap:.15rem}
+        .dot{width:5px;height:5px;background:var(--tl);border-radius:50%;animation:typing 1.4s infinite}
+        .dot:nth-child(1){animation-delay:0s}
+        .dot:nth-child(2){animation-delay:.2s}
+        .dot:nth-child(3){animation-delay:.4s}
+        @keyframes typing{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-3px)}}
+        .controls{display:flex;gap:.5rem;padding:.5rem 0;border-top:1px solid rgba(0,0,0,.1)}
+        .dark .controls{border-top:1px solid rgba(255,255,255,.1)}
+        .btn{padding:.4rem .8rem;background:var(--c);border:1px solid rgba(0,0,0,.1);border-radius:.5rem;font-size:.8rem;cursor:pointer;transition:all .2s}
+        .dark .btn{border:1px solid rgba(255,255,255,.1)}
+        .btn.active{background:var(--p);color:#fff;border-color:var(--p)}
+        .btn:hover{background:rgba(0,0,0,.05)}
+        .dark .btn:hover{background:rgba(255,255,255,.05)}
+        .cm-wrap{font-family:monospace;background:rgba(0,0,0,.05);border-radius:.3rem;padding:.5rem;overflow-x:auto}
+        .dark .cm-wrap{background:rgba(255,255,255,.05)}
+        .files{display:flex;gap:.3rem;flex-wrap:wrap}
+        .file{background:var(--c);border:1px dashed rgba(0,0,0,.2);border-radius:.3rem;padding:.3rem;font-size:.8rem;display:flex;align-items:center;gap:.3rem}
+        .dark .file{border-color:rgba(255,255,255,.2)}
+        .file-prev{max-width:60px;border-radius:.2rem}
+        .file-rm{background:none;border:none;color:var(--tl);cursor:pointer;padding:0 .2rem}
+        @media (max-width:640px){.msg{max-width:90%}}
+    </style>
+</head>
+<body>
+    <header><h1><span class="logo">P</span>AI</h1>
+        <div class="header-actions">
+            <button class="lang-toggle" id="lang"><span id="lang-label">English</span>🌐</button>
+            <button class="theme-toggle" id="theme">☀️</button>
+        </div>
+    </header>
+    <main>
+        <div id="chat"></div>
+        <div id="typing"><span id="typing-text">AI is typing</span><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
+        <div id="input-area">
+            <div class="files" id="files"></div>
+            <div class="input-row">
+                <textarea id="input" placeholder="Message..." rows="1"></textarea>
+                <button id="send" disabled>→</button>
+            </div>
+            <div class="controls">
+                <label class="btn">
+                    📎<input type="file" id="up" hidden multiple>
+                </label>
+                <button class="btn" id="think"><span id="think-label">Show Thinking</span></button>
+            </div>
+        </div>
+    </main>
+    <script>
+        let dark=localStorage.getItem('dark')==='true',lang=localStorage.getItem('lang')||'en',
+            showThink=localStorage.getItem('think')==='true',conv=JSON.parse(localStorage.getItem('conv'))||[],
+            aiMsgId=null,files=[],t={
+            en:{msg:"Message...",typing:"AI is typing",greet:"Hello! I'm Pulsar's AI. How can I help?",err:"Error:",
+                think:"Show Thinking",hide:"Hide Thinking",thinkPrompt:"Describe your thinking process, then provide 'Final Answer:'",
+                fileBig:"File too big (max 5MB)",drop:"Drop files",rm:"Remove"},
+            ru:{msg:"Сообщение...",typing:"ИИ печатает",greet:"Привет! Я Pulsar's AI. Чем могу помочь?",err:"Ошибка:",
+                think:"Показать мысли",hide:"Скрыть мысли",thinkPrompt:"Опишите ход мыслей, затем укажите 'Ответ:'",
+                fileBig:"Файл слишком велик (макс. 5MB)",drop:"Перетащите файлы",rm:"Удалить"},
+            es:{msg:"Mensaje...",typing:"IA escribiendo",greet:"¡Hola! Soy Pulsar's AI. ¿Cómo puedo ayudarte?",err:"Error:",
+                think:"Mostrar pensamiento",hide:"Ocultar pensamiento",thinkPrompt:"Describe tu proceso de pensamiento, luego indica 'Respuesta Final:'",
+                fileBig:"Archivo demasiado grande (máx. 5MB)",drop:"Soltar archivos",rm:"Eliminar"},
+            fr:{msg:"Message...",typing:"IA écrit",greet:"Bonjour! Je suis Pulsar's AI. Comment puis-je aider?",err:"Erreur:",
+                think:"Afficher pensée",hide:"Masquer pensée",thinkPrompt:"Décrivez votre processus de pensée, puis fournissez 'Réponse Finale:'",
+                fileBig:"Fichier trop volumineux (max 5MB)",drop:"Déposer fichiers",rm:"Supprimer"},
+            de:{msg:"Nachricht...",typing:"KI schreibt",greet:"Hallo! Ich bin Pulsar's AI. Wie kann ich helfen?",err:"Fehler:",
+                think:"Denken zeigen",hide:"Denken verstecken",thinkPrompt:"Beschreiben Sie Ihren Denkprozess, dann geben Sie 'Endgültige Antwort:'",
+                fileBig:"Datei zu groß (max. 5MB)",drop:"Dateien ablegen",rm:"Entfernen"}
+        };
+
+        document.body.setAttribute('data-theme',dark?'dark':'');
+        document.getElementById('theme').textContent=dark?'🌙':'☀️';
+        document.getElementById('think').classList.toggle('active',showThink);
+        updateLang();
+        loadConv();
+        document.getElementById('input').focus();
+
+        document.getElementById('theme').addEventListener('click',toggleTheme);
+        document.getElementById('lang').addEventListener('click',toggleLang);
+        document.getElementById('think').addEventListener('click',toggleThinking);
+        document.getElementById('input').addEventListener('input',handleInput);
+        document.getElementById('input').addEventListener('keydown',handleKeyDown);
+        document.getElementById('send').addEventListener('click',sendMsg);
+        document.getElementById('up').addEventListener('change',handleFileUpload);
+
+        ['dragenter','dragover','dragleave','drop'].forEach(e=>document.addEventListener(e,preventDefaults));
+        ['dragenter','dragover'].forEach(e=>document.addEventListener(e,highlight));
+        ['dragleave','drop'].forEach(e=>document.addEventListener(e,unhighlight));
+        document.addEventListener('drop',handleDrop);
+
+        function toggleTheme(){
+            dark=!dark;
+            document.body.setAttribute('data-theme',dark?'dark':'');
+            document.getElementById('theme').textContent=dark?'🌙':'☀️';
+            localStorage.setItem('dark',dark);
+        }
+
+        function toggleLang(){
+            const langs=Object.keys(t);
+            lang=langs[(langs.indexOf(lang)+1)%langs.length];
+            localStorage.setItem('lang',lang);
+            updateLang();
+        }
+
+        function toggleThinking(){
+            showThink=!showThink;
+            document.getElementById('think').classList.toggle('active',showThink);
+            localStorage.setItem('think',showThink);
+            updateLang();
+            updateThinking();
+        }
+
+        function updateLang(){
+            const l=t[lang];
+            document.getElementById('input').placeholder=l.msg;
+            document.getElementById('typing-text').textContent=l.typing;
+            document.getElementById('lang-label').textContent=lang.toUpperCase();
+            document.getElementById('think-label').textContent=showThink?l.hide:l.think;
+        }
+
+        function handleInput(){
+            document.getElementById('send').disabled=!document.getElementById('input').value.trim()&&files.length===0;
+            document.getElementById('input').style.height='auto';
+            document.getElementById('input').style.height=`${Math.min(document.getElementById('input').scrollHeight,120)}px`;
+        }
+
+        function handleKeyDown(e){
+            if(e.key==='Enter'&&!e.shiftKey){
+                e.preventDefault();
+                if(!document.getElementById('send').disabled)sendMsg();
+            }
+        }
+
+        function preventDefaults(e){
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function highlight(){
+            document.getElementById('files').style.background='rgba(99,102,241,0.1)';
+            document.getElementById('files').innerHTML=`<div class="file">${t[lang].drop}</div>`;
+        }
+
+        function unhighlight(){
+            document.getElementById('files').style.background='';
+            renderFiles();
+        }
+
+        function handleDrop(e){
+            handleFiles(e.dataTransfer.files);
+        }
+
+        function handleFileUpload(e){
+            handleFiles(e.target.files);
+            e.target.value='';
+        }
+
+        function handleFiles(fileList){
+            Array.from(fileList).forEach(file=>{
+                if(file.size>5*1024*1024){
+                    addMsg(`${file.name}: ${t[lang].fileBig}`,false,false,true);
+                    return;
+                }
+                if(file.type.startsWith('image/')){
+                    const reader=new FileReader();
+                    reader.onload=e=>{
+                        files.push({n:file.name,t:file.type,d:e.target.result});
+                        renderFiles();
+                    };
+                    reader.readAsDataURL(file);
+                }else{
+                    files.push({n:file.name,t:file.type});
+                    renderFiles();
+                }
+            });
+            document.getElementById('send').disabled=!document.getElementById('input').value.trim()&&files.length===0;
+        }
+
+        function renderFiles(){
+            const container=document.getElementById('files');
+            container.innerHTML=files.map((file,index)=>`
+                <div class="file">
+                    ${file.t.startsWith('image/')?`<img src="${file.d}" class="file-prev">`:''}
+                    ${file.n}
+                    <button class="file-rm" onclick="removeFile(${index})">×</button>
+                </div>
+            `).join('');
+        }
+
+        function removeFile(index){
+            files.splice(index,1);
+            renderFiles();
+            document.getElementById('send').disabled=!document.getElementById('input').value.trim()&&files.length===0;
+        }
+
+        function addMsg(text,isUser,isSystem=false,isError=false){
+            const msg=document.createElement('div');
+            msg.className=isUser?'msg user-msg':'msg ai-msg';
+            if(isSystem)msg.style.opacity='0.7';
+            
+            const content=document.createElement('div');
+            content.className='msg-content'+(isError?' error':'');
+            content.innerHTML=formatCode(text);
+            
+            if(isUser&&files.length>0){
+                const filesDiv=document.createElement('div');
+                filesDiv.className='files';
+                filesDiv.innerHTML=files.map(file=>`
+                    <div class="file">
+                        ${file.t.startsWith('image/')?`<img src="${file.d}" class="file-prev">`:''}
+                        ${file.n}
+                    </div>
+                `).join('');
+                msg.appendChild(filesDiv);
+            }
+            
+            msg.appendChild(content);
+            
+            const time=document.createElement('div');
+            time.className='msg-time';
+            time.textContent=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+            msg.appendChild(time);
+            
+            if(!isUser){
+                msg.id=`ai-${Date.now()}`;
+                aiMsgId=msg.id;
+            }
+            
+            document.getElementById('chat').appendChild(msg);
+            document.getElementById('chat').scrollTop=document.getElementById('chat').scrollHeight;
+            return msg;
+        }
+
+        function formatCode(text){
+            return text.replace(/```(\w*)\n([\s\S]*?)```/g,(match,lang,code)=>
+                `<div class="cm-wrap">${lang?`<small>${lang}</small><br>`:''}${code.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`
+            );
+        }
+
+        function updateMsg(id,content){
+            const msg=document.getElementById(id);
+            if(msg){
+                const contentDiv=msg.querySelector('.msg-content');
+                if(contentDiv){
+                    if(showThink&&content.includes('Final Answer:')){
+                        const [thinking,answer]=content.split('Final Answer:');
+                        contentDiv.innerHTML=`<div>${formatCode(answer.trim())}</div>`+
+                            `<div class="thinking">${formatCode(thinking.trim())}</div>`;
+                        contentDiv.querySelector('.thinking').addEventListener('click',function(){
+                            this.classList.toggle('collapsed');
+                        });
+                    }else{
+                        contentDiv.innerHTML=formatCode(content);
+                    }
+                    document.getElementById('chat').scrollTop=document.getElementById('chat').scrollHeight;
+                }
+            }
+        }
+
+        function updateThinking(){
+            document.querySelectorAll('.thinking').forEach(el=>{
+                el.classList.toggle('collapsed',!showThink);
+            });
+        }
+
+        function saveMsg(isUser,text){
+            conv.push({user:isUser,text,files:isUser?files:[],time:new Date().toISOString()});
+            localStorage.setItem('conv',JSON.stringify(conv));
+        }
+
+        function loadConv(){
+            if(conv.length>0){
+                conv.forEach(msg=>{
+                    const newMsg=addMsg(msg.text,msg.user);
+                    if(msg.user&&msg.files&&msg.files.length>0){
+                        files=msg.files;
+                        renderFiles();
+                    }
+                    if(!msg.user)aiMsgId=newMsg.id;
+                });
+            }else{
+                setTimeout(()=>addMsg(t[lang].greet,false),300);
+            }
+        }
+
+        async function sendMsg(){
+            const text=document.getElementById('input').value.trim();
+            if(!text&&files.length===0)return;
+            
+            addMsg(text,true);
+            saveMsg(true,text);
+            
+            document.getElementById('input').value='';
+            files=[];
+            renderFiles();
+            document.getElementById('send').disabled=true;
+            document.getElementById('input').style.height='auto';
+            document.getElementById('typing').classList.add('visible');
+            
+            try{
+                let prompt=showThink?t[lang].thinkPrompt+'\n\n':'';
+                if(files.length>0)prompt+=`[Files: ${files.map(f=>f.n).join(', ')}]\n`;
+                prompt+=text;
+                
+                const response=await fetch('http://localhost:11434/api/generate',{
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({model:'mistral',prompt,stream:true})
+                });
+                
+                if(!response.ok)throw new Error(`Error: ${response.status}`);
+                
+                const msgId=`ai-${Date.now()}`;
+                addMsg('',false);
+                aiMsgId=msgId;
+                
+                let aiResponse='';
+                const reader=response.body.getReader();
+                const decoder=new TextDecoder();
+                let isComplete=false;
+                
+                const timeout=setTimeout(()=>{
+                    if(!isComplete){
+                        updateMsg(msgId,aiResponse+'\n\n[Response timed out]');
+                        document.getElementById('typing').classList.remove('visible');
+                        isComplete=true;
+                    }
+                },30000);
+                
+                while(true){
+                    const {done,value}=await reader.read();
+                    if(done)break;
+                    
+                    const chunk=decoder.decode(value,{stream:true});
+                    chunk.split('\n').filter(line=>line.trim()).forEach(line=>{
+                        try{
+                            const data=JSON.parse(line);
+                            if(data.response){
+                                aiResponse+=data.response;
+                                updateMsg(msgId,aiResponse);
+                            }
+                            if(data.done){
+                                clearTimeout(timeout);
+                                isComplete=true;
+                            }
+                        }catch(e){console.error('JSON parse error:',e)}
+                    });
+                }
+                
+                clearTimeout(timeout);
+                saveMsg(false,aiResponse);
+            }catch(error){
+                addMsg(`${t[lang].err} ${error.message}`,false,false,true);
+                console.error('Error:',error);
+            }finally{
+                document.getElementById('typing').classList.remove('visible');
+                document.getElementById('input').focus();
+            }
+        }
+    </script>
+</body>
+</html>
